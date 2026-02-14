@@ -1,253 +1,258 @@
 'use client'
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { User, Phone, GraduationCap, Sparkles } from "lucide-react";
+import { useState, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { User, Phone, GraduationCap, Sparkles, CheckCircle2, Ticket, Users, Info } from "lucide-react";
 import { toast } from "sonner";
 
+// Added 'maxCapacity' and 'currentRegistrations' to simulate a "Max Out" state
 const eventOptions = [
-    { id: "solo-singing", title: "Solo Singing", emoji: "🎤", teamSize: 1 },
-    { id: "group-dance", title: "Group Dance", emoji: "💃", teamSize: 5 },
-    { id: "standup", title: "Stand-Up Comedy", emoji: "🎭", teamSize: 1 },
-    { id: "battle-bands", title: "Battle of Bands", emoji: "🎸", teamSize: 4 },
-    { id: "short-film", title: "Short Film", emoji: "🎬", teamSize: 3 },
-    { id: "fashion-walk", title: "Fashion Walk", emoji: "👗", teamSize: 6 },
+    { id: "solo-singing", title: "Solo Singing", emoji: "🎤", teamSize: 1, category: "Music", max: 30, filled: 28 },
+    { id: "group-dance", title: "Group Dance", emoji: "💃", teamSize: 5, category: "Dance", max: 10, filled: 10 }, // Maxed Out
+    { id: "standup", title: "Stand-Up Comedy", emoji: "🎭", teamSize: 1, category: "Drama", max: 15, filled: 5 },
+    { id: "battle-bands", title: "Battle of Bands", emoji: "🎸", teamSize: 4, category: "Music", max: 8, filled: 8 }, // Maxed Out
+    { id: "short-film", title: "Short Film", emoji: "🎬", teamSize: 3, category: "Media", max: 20, filled: 12 },
+    { id: "fashion-walk", title: "Fashion Walk", emoji: "👗", teamSize: 6, category: "Lifestyle", max: 12, filled: 4 },
 ];
 
-const courses = [
-    "BBA",
-    "BBA Aviation",
-    "BCOM A",
-    "BCOM B",
-    "BCA",
-];
+const courses = ["BBA", "BBA Aviation", "BCOM A", "BCOM B", "BCA"];
 
 export default function Register() {
     const [form, setForm] = useState({
-        name: "",
-        phone: "",
-        course: "",
-        event: "",
-        teamSize: 1,
-        teamMembers: [""],
+        name: "", phone: "", course: "",
+        selectedEvents: [] as string[],
+        teamData: {} as Record<string, string[]>,
     });
 
-    const selectedEvent = eventOptions.find((e) => e.id === form.event);
-    const isTeamEvent = selectedEvent ? selectedEvent.teamSize > 1 : false;
+    // Calculate progress for the top bar
+    const progress = useMemo(() => {
+        let p = 0;
+        if (form.name && form.phone && form.course) p += 40;
+        if (form.selectedEvents.length > 0) p += 60;
+        return p;
+    }, [form]);
 
-    const handleEventSelect = (eventId: string) => {
-        const ev = eventOptions.find((e) => e.id === eventId);
-        const size = ev?.teamSize || 1;
-        setForm({
-            ...form,
-            event: eventId,
-            teamSize: size,
-            teamMembers: size > 1 ? Array(size - 1).fill("") : [""],
-        });
-    };
-
-    const handleTeamMemberChange = (index: number, value: string) => {
-        const updated = [...form.teamMembers];
-        updated[index] = value;
-        setForm({ ...form, teamMembers: updated });
-    };
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!form.name || !form.phone || !form.course || !form.event) {
-            toast.error("Please fill all fields");
-            return;
-        }
-        if (isTeamEvent && form.teamMembers.some((m) => !m.trim())) {
-            toast.error("Please fill all team member names");
+    const toggleEvent = (ev: typeof eventOptions[0]) => {
+        if (ev.filled >= ev.max && !form.selectedEvents.includes(ev.id)) {
+            toast.error("This show is Sold Out!");
             return;
         }
 
-        const existing = JSON.parse(localStorage.getItem("elysian-registrations") || "[]");
-        existing.push({
-            ...form,
-            eventTitle: selectedEvent?.title,
-            registeredAt: new Date().toISOString(),
-        });
-        localStorage.setItem("elysian-registrations", JSON.stringify(existing));
+        setForm(prev => {
+            const isSelected = prev.selectedEvents.includes(ev.id);
+            let newEvents = isSelected
+                ? prev.selectedEvents.filter(id => id !== ev.id)
+                : [...prev.selectedEvents, ev.id];
 
-        toast.success("Registration Successful! 🎉");
-        setForm({ name: "", phone: "", course: "", event: "", teamSize: 1, teamMembers: [""] });
+            let newTeamData = { ...prev.teamData };
+            if (isSelected) {
+                delete newTeamData[ev.id];
+            } else if (ev.teamSize > 1) {
+                newTeamData[ev.id] = Array(ev.teamSize - 1).fill("");
+            }
+
+            return { ...prev, selectedEvents: newEvents, teamData: newTeamData };
+        });
     };
 
-    const inputClass =
-        "w-full pl-11 pr-4 py-3.5 rounded-xl bg-secondary/80 border border-border text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 focus:bg-secondary transition-all duration-300 text-sm";
+    const handleTeamMemberChange = (eventId: string, index: number, value: string) => {
+        setForm(prev => ({
+            ...prev,
+            teamData: { ...prev.teamData, [eventId]: prev.teamData[eventId].map((m, i) => i === index ? value : m) }
+        }));
+    };
 
     return (
-        <div className="min-h-screen flex items-center justify-center px-3 sm:px-4 py-20 sm:py-24 relative">
-            {/* Background effects */}
-            <div className="absolute inset-0" style={{
-                background: "radial-gradient(ellipse at top, hsl(357 91% 47% / 0.08) 0%, transparent 50%)"
-            }} />
-            <div className="absolute inset-0" style={{
-                background: "radial-gradient(circle at 80% 80%, hsl(357 91% 47% / 0.04) 0%, transparent 40%)"
-            }} />
+        <div className="min-h-screen bg-[#0a0a0a] text-zinc-100 pb-20 selection:bg-red-600">
+            {/* Top Cinematic Progress Bar */}
+            <div className="fixed top-0 left-0 w-full h-1 bg-zinc-900 z-50">
+                <motion.div
+                    className="h-full bg-red-600 shadow-[0_0_15px_#e50914]"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progress}%` }}
+                />
+            </div>
 
-            <motion.form
-                onSubmit={handleSubmit}
-                className="relative w-full max-w-md sm:max-w-lg glass-card rounded-2xl p-6 sm:p-10 cinematic-shadow"
-                initial={{ opacity: 0, y: 40 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
-            >
-                {/* Header */}
-                <div className="text-center mb-8">
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.2, duration: 0.5 }}
-                    >
-                        <h1
-                            className="font-display text-5xl sm:text-6xl leading-none mb-2"
-                            style={{
-                                background: "linear-gradient(180deg, hsl(0 0% 100%) 30%, hsl(357 91% 47%) 100%)",
-                                WebkitBackgroundClip: "text",
-                                WebkitTextFillColor: "transparent",
-                                backgroundClip: "text",
-                            }}
+            <div className="relative max-w-5xl mx-auto px-4 pt-16 grid grid-cols-1 lg:grid-cols-3 gap-10">
+
+                {/* Main Form Left Side */}
+                <div className="lg:col-span-2 space-y-12">
+                    <header className="relative">
+                        <motion.div
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.6 }}
                         >
-                            Register
-                        </h1>
-                        <p className="text-muted-foreground text-sm sm:text-base">Join the spotlight at Elysian</p>
-                    </motion.div>
-                </div>
+                            <span className="text-red-600 font-bold tracking-[0.5em] text-[10px] sm:text-xs uppercase mb-2 block">
+                                An Elysian Original Series
+                            </span>
 
-                {/* Divider */}
-                <div className="h-px bg-linear-to-r from-transparent via-border to-transparent mb-7" />
-
-                {/* Name */}
-                <div className="mb-4">
-                    <label className="block text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Full Name</label>
-                    <div className="relative">
-                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
-                        <input
-                            type="text"
-                            value={form.name}
-                            onChange={(e) => setForm({ ...form, name: e.target.value })}
-                            className={inputClass}
-                            placeholder="Enter your full name"
-                        />
-                    </div>
-                </div>
-
-                {/* Phone */}
-                <div className="mb-4">
-                    <label className="block text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Phone</label>
-                    <div className="relative">
-                        <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
-                        <input
-                            type="tel"
-                            value={form.phone}
-                            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                            className={inputClass}
-                            placeholder="+91 99999 99999"
-                        />
-                    </div>
-                </div>
-
-                {/* Course */}
-                <div className="mb-6">
-                    <label className="block text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Course</label>
-                    <div className="relative">
-                        <GraduationCap className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
-                        <select
-                            value={form.course}
-                            onChange={(e) => setForm({ ...form, course: e.target.value })}
-                            className={`${inputClass} appearance-none cursor-pointer`}
-                        >
-                            <option value="">Select your course</option>
-                            {courses.map((c) => (
-                                <option key={c} value={c}>{c}</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-
-                {/* Divider */}
-                <div className="h-px bg-linear-to-r from-transparent via-border to-transparent mb-6" />
-
-                {/* Event Selection */}
-                <div className="mb-6">
-                    <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wider">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        Select Event
-                    </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                        {eventOptions.map((ev) => (
-                            <motion.button
-                                key={ev.id}
-                                type="button"
-                                onClick={() => handleEventSelect(ev.id)}
-                                className={`flex flex-col items-center gap-1.5 p-3 sm:p-4 rounded-xl border transition-all duration-300 cursor-pointer ${form.event === ev.id
-                                    ? "border-primary bg-primary/10 glow-primary"
-                                    : "border-border bg-secondary/60 hover:border-primary/40 hover:bg-secondary"
-                                    }`}
-                                whileHover={{ scale: 1.03 }}
-                                whileTap={{ scale: 0.95 }}
-                            >
-                                <span className="text-2xl sm:text-3xl">{ev.emoji}</span>
-                                <span className="text-xs text-foreground font-medium text-center leading-tight">{ev.title}</span>
-                                <span className={`text-[10px] px-2 py-0.5 rounded-full ${ev.teamSize === 1
-                                    ? "bg-muted text-muted-foreground"
-                                    : "bg-primary/10 text-primary"
-                                    }`}>
-                                    {ev.teamSize === 1 ? "Solo" : `Team of ${ev.teamSize}`}
+                            {/* The New Cinematic Title */}
+                            <h1 className="text-6xl md:text-8xl font-black leading-[0.8] mb-4 select-none">
+                                REGIS<span className="text-red-600">TER</span>
+                                <br />
+                                <span className="text-zinc-800 drop-shadow-[0_0_2px_rgba(255,255,255,0.1)] italic font-light tracking-widest">
+                                    2026
                                 </span>
-                            </motion.button>
-                        ))}
+                            </h1>
+
+                            <div className="flex items-center gap-4 mt-4">
+                                <span className="border border-zinc-700 px-2 py-0.5 text-[10px] font-bold text-zinc-400">
+                                    TV-MA
+                                </span>
+                                <span className="text-zinc-400 text-xs font-medium tracking-wide">
+                                    Music, Dance, Drama & more
+                                </span>
+                                <span className="bg-green-600/20 text-green-500 text-[10px] font-bold px-2 py-0.5 rounded">
+                                    98% Match
+                                </span>
+                            </div>
+
+                            <p className="mt-6 text-zinc-500 text-sm max-w-md leading-relaxed">
+                                Step into the limelight. Showcase of talent.
+                            </p>
+                        </motion.div>
+                    </header>
+
+                    {/* Step 1: Profile */}
+                    <div className="space-y-6">
+                        <h2 className="flex items-center gap-2 text-lg font-semibold"><User className="w-5 h-5 text-red-600" /> Personal Details</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <input
+                                placeholder="Full Name"
+                                className="bg-zinc-900/50 border-b-2 border-zinc-800 p-4 focus:border-red-600 outline-none transition-all"
+                                value={form.name}
+                                onChange={e => setForm({ ...form, name: e.target.value })}
+                            />
+                            <input
+                                placeholder="Phone"
+                                className="bg-zinc-900/50 border-b-2 border-zinc-800 p-4 focus:border-red-600 outline-none transition-all"
+                                value={form.phone}
+                                onChange={e => setForm({ ...form, phone: e.target.value })}
+                            />
+                            <select
+                                className="bg-zinc-900/50 border-b-2 border-zinc-800 p-4 focus:border-red-600 outline-none md:col-span-2"
+                                value={form.course}
+                                onChange={e => setForm({ ...form, course: e.target.value })}
+                            >
+                                <option value="">Select Course</option>
+                                {courses.map(c => <option key={c} value={c} className="bg-zinc-900">{c}</option>)}
+                            </select>
+                        </div>
                     </div>
+
+                    {/* Step 2: Grid Selection with "Max Out" state */}
+                    <div className="space-y-6">
+                        <h2 className="flex items-center gap-2 text-lg font-semibold"><Sparkles className="w-5 h-5 text-red-600" /> Select Genres</h2>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {eventOptions.map((ev) => {
+                                const active = form.selectedEvents.includes(ev.id);
+                                const isSoldOut = ev.filled >= ev.max;
+                                return (
+                                    <motion.div
+                                        key={ev.id}
+                                        onClick={() => toggleEvent(ev)}
+                                        whileHover={!isSoldOut ? { y: -5, backgroundColor: "rgba(39, 39, 42, 0.8)" } : {}}
+                                        className={`relative p-5 rounded-lg border-l-4 cursor-pointer transition-all duration-300 ${isSoldOut ? "opacity-40 grayscale cursor-not-allowed border-zinc-700 bg-zinc-900/20" :
+                                            active ? "border-red-600 bg-zinc-800/80 shadow-2xl" : "border-transparent bg-zinc-900/40"
+                                            }`}
+                                    >
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">{ev.category}</span>
+                                                <h3 className="text-xl font-bold mt-1">{ev.title}</h3>
+                                                <div className="flex items-center gap-3 mt-2">
+                                                    <span className="text-xs bg-zinc-800 px-2 py-1 rounded text-zinc-400">{ev.teamSize === 1 ? 'Solo' : `Team of ${ev.teamSize}`}</span>
+                                                    {isSoldOut ? (
+                                                        <span className="text-[10px] text-red-500 font-black uppercase tracking-tighter">● Sold Out</span>
+                                                    ) : (
+                                                        <span className="text-[10px] text-green-500 font-bold uppercase tracking-tighter">● {ev.max - ev.filled} Slots Left</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <span className="text-3xl">{ev.emoji}</span>
+                                        </div>
+                                        {active && <CheckCircle2 className="absolute bottom-4 right-4 text-red-600 w-5 h-5" />}
+                                    </motion.div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Team Section (Dynamic) */}
+                    <AnimatePresence>
+                        {form.selectedEvents.some(id => eventOptions.find(e => e.id === id)?.teamSize! > 1) && (
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                                <h2 className="flex items-center gap-2 text-lg font-semibold"><Users className="w-5 h-5 text-red-600" /> Cast Your Team</h2>
+                                {form.selectedEvents.map(id => {
+                                    const ev = eventOptions.find(e => e.id === id);
+                                    if (!ev || ev.teamSize === 1) return null;
+                                    return (
+                                        <div key={id} className="bg-zinc-900/30 p-6 rounded-xl border border-zinc-800">
+                                            <p className="text-sm font-bold text-red-600 mb-4 tracking-widest uppercase italic">{ev.title} Squad</p>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                {form.teamData[id]?.map((m, i) => (
+                                                    <input
+                                                        key={i}
+                                                        placeholder={`Member ${i + 2} Full Name`}
+                                                        className="bg-black/40 border border-zinc-800 p-3 text-sm rounded outline-none focus:border-red-600"
+                                                        value={m}
+                                                        onChange={e => handleTeamMemberChange(id, i, e.target.value)}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
 
-                {/* Team Members */}
-                {isTeamEvent && selectedEvent && (
-                    <motion.div
-                        className="mb-6"
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        transition={{ duration: 0.3 }}
-                    >
-                        <div className="p-4 rounded-xl bg-primary/5 border border-primary/15">
-                            <label className="block text-xs font-medium text-primary mb-3 uppercase tracking-wider">
-                                Team Members ({selectedEvent.teamSize} total including you)
-                            </label>
-                            <div className="space-y-2.5">
-                                {form.teamMembers.map((member, i) => (
-                                    <div key={i} className="relative">
-                                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground/50 font-mono">
-                                            {String(i + 2).padStart(2, "0")}
-                                        </span>
-                                        <input
-                                            type="text"
-                                            value={member}
-                                            onChange={(e) => handleTeamMemberChange(i, e.target.value)}
-                                            className="w-full pl-11 pr-4 py-3 rounded-xl bg-secondary/80 border border-border text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all duration-300 text-sm"
-                                            placeholder={`Member ${i + 2} name`}
-                                        />
-                                    </div>
-                                ))}
+                {/* Right Side: Floating Sticky Watchlist (Summary) */}
+                <div className="lg:col-span-1">
+                    <div className="sticky top-24 space-y-4">
+                        <div className="bg-zinc-900/80 backdrop-blur-xl border border-zinc-800 p-8 rounded-2xl shadow-2xl overflow-hidden relative">
+                            <div className="absolute top-0 right-0 p-4 opacity-10">
+                                <Ticket className="w-24 h-24 -rotate-12" />
+                            </div>
+
+                            <h3 className="text-xs font-black text-red-600 uppercase tracking-[0.3em] mb-6">Your Spotlight</h3>
+
+                            <div className="space-y-4 mb-8">
+                                {form.selectedEvents.length === 0 ? (
+                                    <p className="text-zinc-500 text-sm italic">No events selected yet...</p>
+                                ) : (
+                                    form.selectedEvents.map(id => {
+                                        const ev = eventOptions.find(e => e.id === id);
+                                        return (
+                                            <div key={id} className="flex justify-between items-center group">
+                                                <span className="text-sm font-medium">{ev?.title}</span>
+                                                <div className="h-px flex-1 mx-4 bg-zinc-800 group-hover:bg-red-900 transition-colors" />
+                                                <span className="text-[10px] bg-red-600 text-white px-2 py-0.5 rounded font-black">ADMIT 1</span>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+
+                            <div className="pt-6 border-t border-zinc-800">
+                                <div className="flex justify-between items-center mb-6">
+                                    <span className="text-zinc-400 text-sm italic">Character Name</span>
+                                    <span className="text-sm font-bold">{form.name || "—"}</span>
+                                </div>
+                                <button className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-lg font-black uppercase tracking-widest shadow-[0_10px_20px_rgba(229,9,20,0.3)] transition-all active:scale-95">
+                                    Final Submission
+                                </button>
+                                <div className="flex items-center gap-2 mt-4 text-[10px] text-zinc-500">
+                                    <Info className="w-3 h-3" />
+                                    <span>Registration is binding for Elysian 2026.</span>
+                                </div>
                             </div>
                         </div>
-                    </motion.div>
-                )}
+                    </div>
+                </div>
 
-                {/* Submit */}
-                <motion.button
-                    type="submit"
-                    className="w-full py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-base sm:text-lg tracking-wide transition-all duration-300 hover:scale-[1.02] glow-primary hover:glow-primary-intense"
-                    whileTap={{ scale: 0.97 }}
-                >
-                    Submit Registration
-                </motion.button>
-
-                <p className="text-center text-xs text-muted-foreground/50 mt-4">
-                    By registering you agree to participate in Elysian events
-                </p>
-            </motion.form>
+            </div>
         </div>
     );
 }
-

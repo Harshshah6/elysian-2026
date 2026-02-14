@@ -18,12 +18,12 @@ export default function Navbar() {
                 ELYSIAN
             </Link>
             <div className="flex gap-6 items-center">
-                <Link
+                {/* <Link
                     href="/"
                     className={`text-sm tracking-wide transition-colors ${pathName === "/" ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
                 >
                     Home
-                </Link>
+                </Link> */}
                 <Link
                     href="/register"
                     className="text-sm px-5 py-2 rounded-lg bg-primary text-primary-foreground font-medium transition-all duration-300 hover:scale-105 glow-primary"
