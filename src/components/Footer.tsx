@@ -1,8 +1,8 @@
 import { Github, Globe } from "lucide-react";
 export default function Footer() {
     return (
-        <footer className="border-t border-border bg-background/80 backdrop-blur-sm py-6 px-6">
-            <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
+        <footer className="border-t border-border bg-[#0a0a0a] backdrop-blur-sm py-6 px-6">
+            <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
                 <p>
                     © {new Date().getFullYear()} <span className="font-display text-foreground tracking-wider">ELYSIAN</span> — All rights reserved
                 </p>

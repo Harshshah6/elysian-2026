@@ -1,8 +1,9 @@
 'use client'
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Phone, GraduationCap, Sparkles, CheckCircle2, Ticket, Users, Info } from "lucide-react";
+import { User, Sparkles, CheckCircle2, Ticket, Users, Info } from "lucide-react";
 import { toast } from "sonner";
+import ParticleBackground from "@/components/ParticleBackground";
 
 // Added 'maxCapacity' and 'currentRegistrations' to simulate a "Max Out" state
 const eventOptions = [
@@ -39,11 +40,11 @@ export default function Register() {
 
         setForm(prev => {
             const isSelected = prev.selectedEvents.includes(ev.id);
-            let newEvents = isSelected
+            const newEvents = isSelected
                 ? prev.selectedEvents.filter(id => id !== ev.id)
                 : [...prev.selectedEvents, ev.id];
 
-            let newTeamData = { ...prev.teamData };
+            const newTeamData = { ...prev.teamData };
             if (isSelected) {
                 delete newTeamData[ev.id];
             } else if (ev.teamSize > 1) {
@@ -62,7 +63,16 @@ export default function Register() {
     };
 
     return (
-        <div className="min-h-screen bg-[#0a0a0a] text-zinc-100 pb-20 selection:bg-red-600">
+        <div className="min-h-screen bg-[#0a0a0a] text-zinc-100 pb-20 selection:bg-red-600 pt-10">
+
+            {/* <HeroBg /> */}
+            <ParticleBackground />
+            {/* Cinematic Background Vignette */}
+            <div className="absolute inset-0 z-0" style={{
+                background: "radial-gradient(circle at center, transparent 0%, rgba(10, 10, 10, 0.4) 40%, #0a0a0a 90%)"
+            }} />
+            <div className="absolute bottom-0 left-0 right-0 h-64 z-1 bg-linear-to-t from-[#0a0a0a] to-transparent" />
+
             {/* Top Cinematic Progress Bar */}
             <div className="fixed top-0 left-0 w-full h-1 bg-zinc-900 z-50">
                 <motion.div
@@ -72,7 +82,7 @@ export default function Register() {
                 />
             </div>
 
-            <div className="relative max-w-5xl mx-auto px-4 pt-16 grid grid-cols-1 lg:grid-cols-3 gap-10">
+            <div className="relative max-w-5xl mx-auto px-4 pt-16 grid grid-cols-1 lg:grid-cols-3 gap-10 z-48">
 
                 {/* Main Form Left Side */}
                 <div className="lg:col-span-2 space-y-12">
@@ -90,7 +100,7 @@ export default function Register() {
                             <h1 className="text-6xl md:text-8xl font-black leading-[0.8] mb-4 select-none">
                                 REGIS<span className="text-red-600">TER</span>
                                 <br />
-                                <span className="text-zinc-800 drop-shadow-[0_0_2px_rgba(255,255,255,0.1)] italic font-light tracking-widest">
+                                <span className="text-zinc-700 drop-shadow-[0_0_2px_rgba(255,255,255,0.1)] italic font-light tracking-widest">
                                     2026
                                 </span>
                             </h1>
@@ -152,7 +162,7 @@ export default function Register() {
                                         key={ev.id}
                                         onClick={() => toggleEvent(ev)}
                                         whileHover={!isSoldOut ? { y: -5, backgroundColor: "rgba(39, 39, 42, 0.8)" } : {}}
-                                        className={`relative p-5 rounded-lg border-l-4 cursor-pointer transition-all duration-300 ${isSoldOut ? "opacity-40 grayscale cursor-not-allowed border-zinc-700 bg-zinc-900/20" :
+                                        className={`relative p-5 rounded-lg border-l-4 cursor-pointer transition-all duration-300 ${isSoldOut ? "opacity-40 grayscale cursor-not-allowed border-zinc-700 bg-zinc-800/20" :
                                             active ? "border-red-600 bg-zinc-800/80 shadow-2xl" : "border-transparent bg-zinc-900/40"
                                             }`}
                                     >

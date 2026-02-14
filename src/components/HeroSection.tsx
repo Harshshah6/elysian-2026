@@ -1,9 +1,10 @@
 'use client';
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { motion, useSpring, useMotionValue } from "framer-motion";
 import { Play, Calendar, MapPin } from "lucide-react";
 import Link from "next/link";
 import ParticleBackground from "./ParticleBackground";
+import { HeroBg } from "./HeroBg";
 
 export default function HeroSection() {
     // Mouse Tracking Logic
@@ -25,7 +26,6 @@ export default function HeroSection() {
 
     return (
         <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#0a0a0a]">
-            <ParticleBackground/>
 
             {/* Interactive Mouse Glow Overlay */}
             <motion.div
@@ -35,12 +35,16 @@ export default function HeroSection() {
                 }}
             />
 
+            <HeroBg />
+            <ParticleBackground />
+
             {/* Cinematic Background Vignette */}
             <div className="absolute inset-0 z-0" style={{
                 background: "radial-gradient(circle at center, transparent 0%, rgba(10, 10, 10, 0.4) 40%, #0a0a0a 90%)"
             }} />
 
-            <div className="absolute bottom-0 left-0 right-0 h-64 z-1 bg-gradient-to-t from-[#0a0a0a] to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 h-64 z-1 bg-linear-to-t from-[#0a0a0a] to-transparent" />
+
 
             <div className="relative z-20 text-center px-4 w-full max-w-7xl mx-auto">
                 <motion.div
@@ -108,7 +112,7 @@ export default function HeroSection() {
                     >
                         <Link
                             href="/register"
-                            className="inline-flex items-center gap-3 px-12 py-4 rounded-md bg-white text-black font-[900] text-lg transition-all hover:bg-zinc-200 shadow-[0_10px_40px_rgba(255,255,255,0.1)]"
+                            className="inline-flex items-center gap-3 px-12 py-4 rounded-md bg-white text-black font-black text-lg transition-all hover:bg-zinc-200 shadow-[0_10px_40px_rgba(255,255,255,0.1)]"
                         >
                             <Play className="w-5 h-5 fill-black" />
                             REGISTER NOW
