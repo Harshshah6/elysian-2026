@@ -1,30 +1,58 @@
 'use client'
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Sparkles, CheckCircle2, Ticket, Users, Info } from "lucide-react";
+import { User, Sparkles, CheckCircle2, Ticket, Users, Info, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import ParticleBackground from "@/components/ParticleBackground";
+import { client } from "@/lib/orpc/orpc";
 
-// Added 'maxCapacity' and 'currentRegistrations' to simulate a "Max Out" state
-const eventOptions = [
-    { id: "solo-singing", title: "Solo Singing", emoji: "🎤", teamSize: 1, category: "Music", max: 30, filled: 28 },
-    { id: "group-dance", title: "Group Dance", emoji: "💃", teamSize: 5, category: "Dance", max: 10, filled: 10 }, // Maxed Out
-    { id: "standup", title: "Stand-Up Comedy", emoji: "🎭", teamSize: 1, category: "Drama", max: 15, filled: 5 },
-    { id: "battle-bands", title: "Battle of Bands", emoji: "🎸", teamSize: 4, category: "Music", max: 8, filled: 8 }, // Maxed Out
-    { id: "short-film", title: "Short Film", emoji: "🎬", teamSize: 3, category: "Media", max: 20, filled: 12 },
-    { id: "fashion-walk", title: "Fashion Walk", emoji: "👗", teamSize: 6, category: "Lifestyle", max: 12, filled: 4 },
-];
+type EventOption = {
+    id: string;
+    title: string;
+    category: string;
+    teamSize: number;
+    maxCapacity: number;
+    filled: number;
+    slotsLeft: number;
+};
+
+const eventEmojis: Record<string, string> = {
+    "solo-singing": "🎤",
+    "group-dance": "💃",
+    "standup": "🎭",
+    "battle-bands": "🎸",
+    "short-film": "🎬",
+    "fashion-walk": "👗",
+};
 
 const courses = ["BBA", "BBA Aviation", "BCOM A", "BCOM B", "BCA"];
 
 export default function Register() {
+    const [eventOptions, setEventOptions] = useState<EventOption[]>([]);
+    const [loadingEvents, setLoadingEvents] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
     const [form, setForm] = useState({
         name: "", phone: "", course: "",
         selectedEvents: [] as string[],
         teamData: {} as Record<string, string[]>,
     });
 
-    // Calculate progress for the top bar
+    // 1. Manual Fetching (Vanilla Client)
+    useEffect(() => {
+        const fetchEvents = async () => {
+            try {
+                const data = await client.getEvents();
+                setEventOptions(data as EventOption[]);
+            } catch {
+                toast.error("Failed to load events");
+            } finally {
+                setLoadingEvents(false);
+            }
+        };
+        fetchEvents();
+    }, []);
+
     const progress = useMemo(() => {
         let p = 0;
         if (form.name && form.phone && form.course) p += 40;
@@ -32,8 +60,8 @@ export default function Register() {
         return p;
     }, [form]);
 
-    const toggleEvent = (ev: typeof eventOptions[0]) => {
-        if (ev.filled >= ev.max && !form.selectedEvents.includes(ev.id)) {
+    const toggleEvent = (ev: EventOption) => {
+        if (ev.slotsLeft <= 0 && !form.selectedEvents.includes(ev.id)) {
             toast.error("This show is Sold Out!");
             return;
         }
@@ -58,9 +86,30 @@ export default function Register() {
     const handleTeamMemberChange = (eventId: string, index: number, value: string) => {
         setForm(prev => ({
             ...prev,
-            teamData: { ...prev.teamData, [eventId]: prev.teamData[eventId].map((m, i) => i === index ? value : m) }
+            teamData: {
+                ...prev.teamData,
+                [eventId]: prev.teamData[eventId].map((m, i) => i === index ? value : m)
+            }
         }));
     };
+
+    // 2. Manual Mutation Handling
+    const handleSubmit = async () => {
+        if (!form.name || !form.phone || !form.course) return toast.error("Please fill personal details");
+        if (form.selectedEvents.length === 0) return toast.error("Select at least one event");
+
+        setIsSubmitting(true);
+        try {
+            const res = await client.registerStudent(form);
+            toast.success(res.message);
+            setForm({ name: "", phone: "", course: "", selectedEvents: [], teamData: {} });
+        } catch {
+            toast.error("Registration failed");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
 
     return (
         <div className="min-h-screen bg-[#0a0a0a] text-zinc-100 pb-20 selection:bg-red-600 pt-10">
@@ -72,6 +121,12 @@ export default function Register() {
                 background: "radial-gradient(circle at center, transparent 0%, rgba(10, 10, 10, 0.4) 40%, #0a0a0a 90%)"
             }} />
             <div className="absolute bottom-0 left-0 right-0 h-64 z-1 bg-linear-to-t from-[#0a0a0a] to-transparent" />
+
+            {isSubmitting && (
+                <div onClick={() => { }} className="fixed inset-0 bg-black/80 flex items-center justify-center z-100">
+                    <Loader2 className="animate-spin size-8" />
+                </div>
+            )}
 
             {/* Top Cinematic Progress Bar */}
             <div className="fixed top-0 left-0 w-full h-1 bg-zinc-900 z-50">
@@ -137,7 +192,16 @@ export default function Register() {
                                 placeholder="Phone"
                                 className="bg-zinc-900/50 border-b-2 border-zinc-800 p-4 focus:border-red-600 outline-none transition-all"
                                 value={form.phone}
-                                onChange={e => setForm({ ...form, phone: e.target.value })}
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                onChange={e => {
+                                    const val = e.target.value.replace(/\D/g, "");
+                                    if (val.length <= 10) {
+                                        setForm({ ...form, phone: val });
+                                    }
+                                }}
+                                onWheel={(e) => (e.target as HTMLInputElement).blur()}
                             />
                             <select
                                 className="bg-zinc-900/50 border-b-2 border-zinc-800 p-4 focus:border-red-600 outline-none md:col-span-2"
@@ -153,43 +217,50 @@ export default function Register() {
                     {/* Step 2: Grid Selection with "Max Out" state */}
                     <div className="space-y-6">
                         <h2 className="flex items-center gap-2 text-lg font-semibold"><Sparkles className="w-5 h-5 text-red-600" /> Select Genres</h2>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {eventOptions.map((ev) => {
-                                const active = form.selectedEvents.includes(ev.id);
-                                const isSoldOut = ev.filled >= ev.max;
-                                return (
-                                    <motion.div
-                                        key={ev.id}
-                                        onClick={() => toggleEvent(ev)}
-                                        whileHover={!isSoldOut ? { y: -5, backgroundColor: "rgba(39, 39, 42, 0.8)" } : {}}
-                                        className={`relative p-5 rounded-lg border-l-4 cursor-pointer transition-all duration-300 ${isSoldOut ? "opacity-40 grayscale cursor-not-allowed border-zinc-700 bg-zinc-800/20" :
-                                            active ? "border-red-600 bg-zinc-800/80 shadow-2xl" : "border-transparent bg-zinc-900/40"
-                                            }`}
-                                    >
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">{ev.category}</span>
-                                                <h3 className="text-xl font-bold mt-1">{ev.title}</h3>
-                                                <div className="flex items-center gap-3 mt-2">
-                                                    <span className="text-xs bg-zinc-800 px-2 py-1 rounded text-zinc-400">{ev.teamSize === 1 ? 'Solo' : `Team of ${ev.teamSize}`}</span>
-                                                    {isSoldOut ? (
-                                                        <span className="text-[10px] text-red-500 font-black uppercase tracking-tighter">● Sold Out</span>
-                                                    ) : (
-                                                        <span className="text-[10px] text-green-500 font-bold uppercase tracking-tighter">● {ev.max - ev.filled} Slots Left</span>
-                                                    )}
+                        {
+                            loadingEvents ? (
+                                <div className="flex justify-center p-12"><Loader2 className="animate-spin text-red-600" /></div>
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {eventOptions.map((ev) => {
+                                        const active = form.selectedEvents.includes(ev.id);
+                                        const isSoldOut = ev.slotsLeft <= 0;
+                                        return (
+                                            <motion.div
+                                                key={ev.id}
+                                                onClick={() => toggleEvent(ev)}
+                                                whileHover={!isSoldOut ? { y: -5, backgroundColor: "rgba(39, 39, 42, 0.8)" } : {}}
+                                                className={`relative p-5 rounded-lg border-l-4 cursor-pointer transition-all duration-300 ${isSoldOut ? "opacity-40 grayscale cursor-not-allowed border-zinc-700 bg-zinc-800/20" :
+                                                    active ? "border-red-600 bg-zinc-800/80 shadow-2xl" : "border-transparent bg-zinc-900/40"
+                                                    }`}
+                                            >
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">{ev.category}</span>
+                                                        <h3 className="text-xl font-bold mt-1">{ev.title}</h3>
+                                                        <div className="flex items-center gap-3 mt-2">
+                                                            <span className="text-xs bg-zinc-800 px-2 py-1 rounded text-zinc-400">{ev.teamSize === 1 ? 'Solo' : `Team of ${ev.teamSize}`}</span>
+                                                            {isSoldOut ? (
+                                                                <span className="text-[10px] text-red-500 font-black uppercase tracking-tighter">● Sold Out</span>
+                                                            ) : (
+                                                                <span className="text-[10px] text-green-500 font-bold uppercase tracking-tighter">● {ev.slotsLeft} Slots Left</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-3xl">{eventEmojis[ev.id] || "🎭"}</span>
                                                 </div>
-                                            </div>
-                                            <span className="text-3xl">{ev.emoji}</span>
-                                        </div>
-                                        {active && <CheckCircle2 className="absolute bottom-4 right-4 text-red-600 w-5 h-5" />}
-                                    </motion.div>
-                                );
-                            })}
-                        </div>
+                                                {active && <CheckCircle2 className="absolute bottom-4 right-4 text-red-600 w-5 h-5" />}
+                                            </motion.div>
+                                        );
+                                    })}
+                                </div>
+                            )
+                        }
                     </div>
 
                     {/* Team Section (Dynamic) */}
                     <AnimatePresence>
+                        {/* eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain */}
                         {form.selectedEvents.some(id => eventOptions.find(e => e.id === id)?.teamSize! > 1) && (
                             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                                 <h2 className="flex items-center gap-2 text-lg font-semibold"><Users className="w-5 h-5 text-red-600" /> Cast Your Team</h2>
@@ -250,7 +321,10 @@ export default function Register() {
                                     <span className="text-zinc-400 text-sm italic">Character Name</span>
                                     <span className="text-sm font-bold">{form.name || "—"}</span>
                                 </div>
-                                <button className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-lg font-black uppercase tracking-widest shadow-[0_10px_20px_rgba(229,9,20,0.3)] transition-all active:scale-95">
+                                <button
+                                    disabled={isSubmitting}
+                                    onClick={handleSubmit}
+                                    className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-lg font-black uppercase tracking-widest shadow-[0_10px_20px_rgba(229,9,20,0.3)] transition-all active:scale-95">
                                     Final Submission
                                 </button>
                                 <div className="flex items-center gap-2 mt-4 text-[10px] text-zinc-500">

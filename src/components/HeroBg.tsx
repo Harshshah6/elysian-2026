@@ -16,18 +16,7 @@ export const HeroBg = () => {
         <div suppressHydrationWarning className="absolute inset-0 w-full h-max overflow-hidden bg-black">
             {/* Responsive Grid */}
             <div
-                className="
-          grid
-          grid-cols-2
-          sm:grid-cols-3
-          md:grid-cols-4
-          lg:grid-cols-5
-          gap-2
-          w-full
-          px-4
-          py-6
-          scale-100 sm:scale-105 md:scale-110
-        "
+                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 w-full px-4 py-6 scale-100 sm:scale-105 md:scale-110"
             >
                 {shows.map((show, index) => (
                     <div
